@@ -1,0 +1,368 @@
+Breath Check setup. 
+
+What you need to make it work.
+
+Before hands you need a Windows 11 Laptop with a microphone, 
+Administrator Credentials, Internet access, libraries and frameworks.
+
+Connect to windows as Administrator and work always as administrator.
+
+Libraries and frameworks to install.
+
+Please create a directory C:\Framework, change the properties and allow full control for all users.
+
+In the C:\Framework directory create 3 sub directories:
+
+  \FFMPEG
+  \Python
+  \nodejs
+  \ngrok
+
+Download the correct windows installer 64 bit .msi from:
+
+👉 https://www.gyan.dev/ffmpeg/builds/
+
+Download:
+
+👉 “ffmpeg-release-full.7z” (or latest full build)
+
+https://www.python.org/downloads/
+https://nodejs.org/en
+https://ngrok.com/download/windows
+
+NGROK is required only if you want the software to work from a mobile.
+As this is still a work in progress you can install it now, but it will not be used
+until the next update. 
+
+The prototype of software will work from a browser in your local pc.
+
+Install all of the above in the respective directories you created.
+
+For FFMPEG copy the \BIN directory and the rest in your FFMPEG.
+
+in Windows search on the bottom bar type: Edit environment variables for your account
+
+Press environmental variables.
+
+Now you see the environments variables.
+
+Select PATH then button Edit.
+
+Press New and add one by one the path to your frameworks directories:
+
+C:\Frameworks\ffmpeg\bin
+C:\Frameworks\Python\bin
+C:\Frameworks\Python\Scripts
+C:\Frameworks\ngrok
+
+Press ok and exit. Restart your laptop. Reconnect as administrator.
+
+on disk c: do as you did before and create another folder 
+
+mkdir breath-check
+cd breath-check
+
+mkdir backend
+mkdir frontend
+
+now change the properties to the breath-check to allow full control to all users.
+
+Open a command prompt, type cmd in the serch bar and run as administrator.
+
+Go to backend folder
+
+c:
+
+CD c:\breath-check\backend
+
+create virtual environment, type as follows:
+
+python -m venv venv
+
+press "enter"
+
+venv\Scripts\activate
+
+press "enter"
+
+Leave the window open but minimized on the task bar.
+
+open another command prompt as administrator. Go  to backend directory.
+
+c:
+
+CD c:\breath-check\backend
+
+Install dependencies, type as follows and press enter at the end:
+
+pip install fastapi uvicorn librosa numpy scipy soundfile python-multipart pydub
+
+Check there is no errors.
+
+Open Notepad and create in backend the file main.py, copy and paste everything between asterisk, save the file.
+
+**************************************
+
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, File, UploadFile
+import numpy as np
+import librosa
+from pydub import AudioSegment
+import tempfile
+import os
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # allow all (OK for hackathon)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ----------------------------
+# Simple AI-like analysis
+# ----------------------------
+def analyze_audio(y, sr):
+    energy = np.mean(y**2)
+    zcr = np.mean(librosa.feature.zero_crossing_rate(y))
+    spectral_centroid = np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
+
+    print(f"DEBUG -> Energy: {energy}, ZCR: {zcr}, Spectral: {spectral_centroid}")
+
+    if energy < 0.001:
+        return "⚠️ Low breath strength detected"
+
+    if spectral_centroid > 3000:
+        return "⚠️ Possible wheeze detected"
+
+    if zcr > 0.15:
+        return "⚠️ Irregular breathing pattern"
+
+    return "✅ Normal breathing pattern"
+
+
+# ----------------------------
+# API endpoint
+# ----------------------------
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+    try:
+        # Read uploaded audio
+        audio_bytes = await file.read()
+
+        # Save as .webm (browser format)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
+            tmp.write(audio_bytes)
+            webm_path = tmp.name
+
+        print(f"Saved WEBM: {webm_path}")
+
+        # Convert to WAV using ffmpeg (via pydub)
+        wav_path = webm_path.replace(".webm", ".wav")
+
+        audio = AudioSegment.from_file(webm_path, format="webm")
+        audio.export(wav_path, format="wav")
+
+        print(f"Converted WAV: {wav_path}")
+
+        # Load audio
+        y, sr = librosa.load(wav_path, sr=None)
+
+        print(f"Loaded audio: {len(y)} samples, SR: {sr}")
+
+        # Run analysis
+        result = analyze_audio(y, sr)
+
+        # Clean up temp files
+        os.remove(webm_path)
+        os.remove(wav_path)
+
+        return {"result": result}
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return {"result": "❌ Error processing audio"}
+
+**************************************
+
+in backend run the backend software
+
+uvicorn main:app --reload
+
+In a browser open: 
+
+http://127.0.0.1:8000/docs
+
+You now have a working API.
+
+Leave the window open but minimized on the task bar.
+
+open another command prompt as administrator. Go to backend directory.
+
+c:
+
+CD c:\breath-check\frontend
+
+Open Notepad and create in frontend the file index.html, copy and paste everything between asterisk, save the file.
+
+**************************************
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Breath Check</title>
+</head>
+<body>
+
+<h1>2-Minute Breath Check</h1>
+
+<button onclick="startRecording()">Start Recording</button>
+<button onclick="stopRecording()">Stop</button>
+
+<p id="status">Status: idle</p>
+<p id="result"></p>
+
+<script>
+let mediaRecorder;
+let audioChunks = [];
+
+async function startRecording() {
+  document.getElementById("status").innerText = "Recording...";
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorder = new MediaRecorder(stream);
+
+  audioChunks = [];
+
+  mediaRecorder.ondataavailable = event => {
+    console.log("Chunk received");
+    audioChunks.push(event.data);
+  };
+
+  mediaRecorder.start();
+}
+
+async function stopRecording() {
+  if (!mediaRecorder) {
+    alert("Recording not started!");
+    return;
+  }
+
+  document.getElementById("status").innerText = "Processing...";
+
+  mediaRecorder.stop();
+
+  mediaRecorder.onstop = async () => {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+    const formData = new FormData();
+    formData.append("file", audioBlob);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/analyze", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+      document.getElementById("result").innerText = data.result;
+
+      document.getElementById("status").innerText = "Done";
+    } catch (error) {
+      console.error(error);
+      document.getElementById("status").innerText = "Error";
+    }
+  };
+}
+</script>
+
+</body>
+</html>
+
+**************************************
+
+Open Windows Defender Firewall
+
+Chose Allow and App or feature through Windows Defender Firewall
+
+Chose python and allow everything
+
+Optionally you should find also ports 8000 and 8080 you need to allow for both 
+
+Confirm you allowed traffic with ok
+
+in the command window of the frontend run 
+
+cd c:\breathcheck\frontend
+
+python -m http.server 8080
+
+open a browser and type in the address bar http://localhost:8080
+
+
+🧪 ✅ SIMPLE TEST PROTOCOL (what YOU should do)
+
+You want a structured 3-step test (like a real screening tool)
+
+🎤 STEP 1 — Breathing test (10 seconds)
+What to do:
+Hold phone ~20 cm from mouth
+Quiet room
+Do:
+
+👉 3 deep breaths:
+
+INHALE (3 sec) → EXHALE (4 sec)
+
+Repeat 3 times (~10 seconds total)
+
+What the app is “looking for”:
+airflow consistency
+noise (wheezing-like sounds)
+breath interruptions
+Expected result:
+Normal → low energy variation
+No spikes → “green / normal”
+💨 STEP 2 — Cough test (5–8 seconds)
+What to do:
+
+👉 Do 3 strong coughs, like:
+
+COUGH — pause — COUGH — pause — COUGH
+Important:
+Not fake throat clearing ❌
+Real chest cough ✅
+What the app detects:
+sharp spikes in amplitude
+spectral changes (cough signature)
+Expected:
+Strong spikes → classified as “cough detected”
+🗣️ STEP 3 — Voice test (5–10 seconds)
+Say clearly:
+"Today I feel well and my breathing is normal"
+Why this matters:
+voice stability
+breath control while speaking
+pauses / strain
+🧠 What your prototype is ACTUALLY doing
+
+Right now your backend is likely using:
+
+amplitude (loudness)
+zero-crossing rate
+maybe spectral features
+
+👉 So you're detecting patterns, not diagnosing
+
+🧪 FULL TEST FLOW (what to actually do)
+Open app on phone
+Press Start Recording
+Do:
+
+👉 10 sec breathing
+👉 3 coughs
+👉 say the sentence
+
+Press Stop
+Wait for result

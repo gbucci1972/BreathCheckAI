@@ -28,7 +28,7 @@ the platform demonstrates how AI can be responsibly embedded into everyday care.
 
 With further validation, it could integrate into NHS digital pathways, community outreach, and remote monitoring programmes—turning any smartphone into a scalable, equitable screening tool for respiratory health.
 
-We're not trying to replace cliniciansn - we're helping them see patients earlier, when intervention is cheaper and more effective.
+We're not trying to replace clinicians - we're helping them see patients earlier, when intervention is cheaper and more effective.
 
 FAQ
 

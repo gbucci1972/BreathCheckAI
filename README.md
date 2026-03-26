@@ -1,7 +1,7 @@
 # BreathCheckAI
 Breath Check A.I.
 
-Every year about 16000 people in Walesd look for medical attention for breath issues and copd, 
+Every year about 16000 people in Wales look for medical attention for breath issues and copd, 
 with this app they can use their mobile phone to upload a sample of their breath , cough and some words, 
 and they receive a signal if there is an issue.
 

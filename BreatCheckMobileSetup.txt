@@ -1,0 +1,254 @@
+Breath Check Mobile setup. 
+
+This is the fully working solution to use with the mobile phone.
+
+I assume you did already made all the steps from Breath Check Setup to install the initial version.
+
+What you need to make it work.
+
+Connect to windows as Administrator and work always as administrator.
+
+Libraries and frameworks to install.
+
+In the C:\Framework directory create a sub directory:
+
+  \Zrok2
+
+In Zrok2 create the directory \Bin
+
+Refer to
+
+https://netfoundry.io/docs/zrok/get-started/
+
+Download the correct windows installation files from:
+
+https://netfoundry.io/docs/zrok/get-started/install-zrok2
+
+use
+
+https://github.com/openziti/zrok/releases/download/v2.0.0/zrok_2.0.0_windows_amd64.tar.gz
+
+Copy the content into the directory C:\Frameworks\Zrok2\Bin 
+
+in Windows search on the bottom bar type: Edit environment variables for your account
+
+Press environmental variables.
+
+Now you see the environments variables.
+
+Select PATH then button Edit.
+
+Press New and add one by one the path to your frameworks directories:
+
+C:\Frameworks\Zrok2\bin
+
+Press ok and exit. Restart your laptop. Reconnect as administrator.
+
+Open a cmd.com prompt and check the following works: type "Zrok2 version" press enter.
+
+you should see this
+
+ _____ __ ___ | | __
+|_  / '__/ _ \| |/ /
+ / /| | | (_) |   <
+/___|_|  \___/|_|\_\
+
+v2.0.0 [c889005]
+
+If it does not works then change the properties of the directory Zrok2 and allow full control for all users.
+
+Go to https://zrok.io/ and signup for free.
+
+You will receive an account token, save it somewhere in a text file.
+
+Open a cmd prompt and type
+
+zrok enable YOUR_TOKEN_HERE
+
+Replace YOUR_TOKEN_HERE with yout ZROK token
+
+Rename the file into c:\breath-check\frontend\index.html file to index.Ori
+
+Open Notepad
+
+Create a new c:\breath-check\frontend\index.html
+
+copy and paste everything between asterisk, save the file.
+
+*********************
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Breath Check</title>
+</head>
+<body>
+
+
+
+<h1>2-Minute Breath Check</h1>
+
+<button style="font-size:48px; padding:30px 20px;" onclick="startRecording()">Start Recording</button>
+
+<button style="font-size:48px; padding:30px 20px;" onclick="stopRecording()">Stop</button>
+
+<p id="status">Status: idle</p>
+<pre id="result"></pre>
+
+
+<script>
+
+const serverURL = "https://myaddress.shares.zrok.io";
+
+let mediaRecorder;
+let audioChunks = [];
+
+document.getElementById("result").textContent = result;
+
+async function startRecording() {
+  document.getElementById("status").innerText = "Recording...";
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorder = new MediaRecorder(stream);
+
+  audioChunks = [];
+
+  mediaRecorder.ondataavailable = event => {
+    console.log("Chunk received");
+    audioChunks.push(event.data);
+  };
+
+  mediaRecorder.start();
+}
+
+async function stopRecording() {
+  if (!mediaRecorder) {
+    alert("Recording not started!");
+    return;
+  }
+
+  document.getElementById("status").innerText = "Processing...";
+
+  mediaRecorder.stop();
+
+  mediaRecorder.onstop = async () => {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+    const formData = new FormData();
+    formData.append("file", audioBlob);
+
+    console.log("Calling:", `${serverURL}/analyze`);
+
+    try {
+      const response = await fetch(`${serverURL}/analyze`, {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+      document.getElementById("result").innerText = data.result;
+
+      document.getElementById("status").innerText = "Done";
+    } catch (error) {
+      console.error(error);
+      document.getElementById("status").innerText = "Error";
+    }
+  };
+}
+</script>
+
+</body>
+</html>
+
+********************
+
+open a cmd prompt go to c: drive
+
+cd C:\breath-check\venv\Scripts
+
+Type Activate and press enter
+
+
+open a cmd prompt go to c: drive
+
+cd c:\breath-check\backend
+
+Start the backend
+
+type "uvicorn main:app --host 0.0.0.0 --port 8000" press enter
+
+
+open a cmd prompt go to c: drive
+
+cd c:\breath-check\backend
+
+expose the backend
+
+type "zrok2 share public http://localhost:8000" press enter
+
+you will get something like
+
+https://something.zrok.io
+
+select and copy this text, that is your backend URL
+
+open the file c:\breath-check\frontend\index.html in notepad
+
+replace
+
+const serverURL = "https://myaddress.shares.zrok.io";
+
+with the value you just copied from the exposure of the backend
+
+const serverURL = "https://something.zrok.io";
+
+Save the file
+
+
+open a cmd prompt go to c: drive
+
+cd c:\breath-check\frontend
+
+serve the frontend
+
+type "python -m http.server 3000" press enter
+
+
+open a cmd prompt go to c: drive
+
+cd c:\breath-check\frontend
+
+Expose the frontend
+
+Type "zrok2 share public http://localhost:3000" press enter
+
+Now you are ready to test.
+
+Open a browser on your phone.
+
+in the address bar type "https://something.zrok.io" not literally this, 
+but the value you obtained for the backend exposure
+
+Test the application:
+
+Press the start recording button.
+
+Breath: inhale 3 seconds, exhale, repeat 3 times, cough 3 times, say something like "today is a beautiful day and I feel good".
+
+Press stop and wait for results.
+
+Refresh the page to retest.
+
+NOTE: every time you restart the backend and the front end the values for the Zork URL change, 
+
+you will need to change the same value in the index.html file accordingly.
+
+
+
+
+
+
+
+
+
+
+ 

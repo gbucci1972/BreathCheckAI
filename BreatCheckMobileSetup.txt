@@ -226,7 +226,7 @@ Now you are ready to test.
 Open a browser on your phone.
 
 in the address bar type "https://something.zrok.io" not literally this, 
-but the value you obtained for the backend exposure
+but the value you obtained for the frontend exposure
 
 Test the application:
 
